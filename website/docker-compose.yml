@@ -39,3 +39,13 @@ services:
       VIRTUAL_PORT: 4000
       LETSENCRYPT_HOST: "tomesh.dev,www.tomesh.dev"
       LETSENCRYPT_EMAIL: "admin@admin.com"
+
+  cjdns:
+    image: chpio/cjdns:latest
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./data-cjdns:/data/cjdns
+    devices:
+      - /dev/net/tun
+
