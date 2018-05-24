@@ -7,4 +7,16 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      - "/etc/nginx/vhost.d"
+      - "/usr/share/nginx/html"
       - "/var/run/docker.sock:/tmp/docker.sock:ro"
+      - "/etc/nginx/certs"
+
+  letsencrypt-nginx-proxy-companion:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    volumes_from:
+      - "nginx-proxy"
+    environment: 
+      ACME_CA_URI: https://acme-staging.api.letsencrypt.org/directory # testing value
