@@ -20,3 +20,22 @@ services:
       - "nginx-proxy"
     environment: 
       ACME_CA_URI: https://acme-staging.api.letsencrypt.org/directory # testing value
+
+  jekyll:
+    command: jekyll serve
+    image: jekyll/jekyll:latest
+    depends_on:
+      - nginx-proxy
+      - letsencrypt-nginx-proxy-companion
+    volumes:
+      - $PWD:/srv/jekyll
+      - $PWD/vendor/bundle:/usr/local/bundle
+    ports:
+      - "4000:4000"
+      - "35729:35729"
+      - "3000:3000"
+    environment:
+      VIRTUAL_HOST: "tomesh.dev,www.tomesh.dev"
+      VIRTUAL_PORT: 4000
+      LETSENCRYPT_HOST: "tomesh.dev,www.tomesh.dev"
+      LETSENCRYPT_EMAIL: "admin@admin.com"
