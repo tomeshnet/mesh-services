@@ -14,7 +14,7 @@ The following steps assume you have a Digital Ocean account.
 1. Clone this repository and work from the `terraform` directory:
 
         git clone https://github.com/tomeshnet/node-recipes.git
-        cd node-recipes/synapse-chat/terraform
+        cd node-recipes/matrix-synapse-riot/terraform
 
 1. From your domain name registrar, point name servers to Digital Ocean's name servers:
 
