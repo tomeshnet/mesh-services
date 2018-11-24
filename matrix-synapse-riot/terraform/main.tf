@@ -45,14 +45,14 @@ resource "digitalocean_record" "matrix" {
   type   = "A"
   name   = "matrix"
   value  = "${digitalocean_droplet.matrix-server.ipv4_address}"
-  ttl    = "60"
+  ttl    = "86400"
 }
 resource "digitalocean_record" "matrix-v6" {
   domain = "${file(var.domain_name)}"
   type   = "AAAA"
   name   = "matrix"
   value  = "${digitalocean_droplet.matrix-server.ipv6_address}"
-  ttl    = "60"
+  ttl    = "86400"
 }
 resource "digitalocean_record" "matrix-caa" {
   domain = "${file(var.domain_name)}"
@@ -61,7 +61,7 @@ resource "digitalocean_record" "matrix-caa" {
   flags  = 0
   tag  = "issue"
   value  = "letsencrypt.org."
-  ttl    = "60"
+  ttl    = "86400"
 }
 
 # DNS records for Riot Web frontend
@@ -70,14 +70,14 @@ resource "digitalocean_record" "chat" {
   type   = "A"
   name   = "chat"
   value  = "${digitalocean_droplet.matrix-server.ipv4_address}"
-  ttl    = "60"
+  ttl    = "86400"
 }
 resource "digitalocean_record" "chat-v6" {
   domain = "${file(var.domain_name)}"
   type   = "AAAA"
   name   = "chat"
   value  = "${digitalocean_droplet.matrix-server.ipv6_address}"
-  ttl    = "60"
+  ttl    = "86400"
 }
 resource "digitalocean_record" "chat-caa" {
   domain = "${file(var.domain_name)}"
@@ -86,7 +86,7 @@ resource "digitalocean_record" "chat-caa" {
   flags  = 0
   tag    = "issue"
   value  = "letsencrypt.org."
-  ttl    = "60"
+  ttl    = "86400"
 }
 
 # Matrix SRV record
@@ -98,7 +98,7 @@ resource "digitalocean_record" "matrix-srv" {
   weight   = "0"
   port     = "8448"
   value    = "matrix.${file(var.domain_name)}."
-  ttl      = "60"
+  ttl      = "86400"
 }
 
 # Run after DNS records are configured
@@ -150,7 +150,7 @@ resource "digitalocean_record" "chat-cjdns" {
   type       = "AAAA"
   name       = "h.chat"
   value      = "${file(".keys/ipv6-cjdns")}"
-  ttl        = "60"
+  ttl        = "86400"
 }
 
 resource "digitalocean_record" "chat-cjdns-caa" {
@@ -162,7 +162,7 @@ resource "digitalocean_record" "chat-cjdns-caa" {
   flags      = 0
   tag        = "issue"
   value      = "letsencrypt.org."
-  ttl        = "60"
+  ttl        = "86400"
 }
 
 # Create DNS records for Matrix CJDNS
@@ -173,7 +173,7 @@ resource "digitalocean_record" "matrix-cjdns" {
   type       = "AAAA"
   name       = "h.matrix"
   value      = "${file(".keys/ipv6-cjdns")}"
-  ttl        = "60"
+  ttl        = "86400"
 }
 
 resource "digitalocean_record" "matrix-cjdns-caa" {
@@ -185,7 +185,7 @@ resource "digitalocean_record" "matrix-cjdns-caa" {
   flags      = 0
   tag        = "issue"
   value      = "letsencrypt.org."
-  ttl        = "60"
+  ttl        = "86400"
 }
 
 # Get cert from Let's Encrypt
