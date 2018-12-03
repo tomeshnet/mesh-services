@@ -54,11 +54,11 @@ LONG-TERM
 
 >. . . but isn't Digital Ocean just another centralized cloud provider?
 
-A centralized cloud provider solves two problems for us: _reachability_ and _reliability_, which our meshnet is not yet able to produce. Once our meshnet can route network traffic without a public IPv4 address and applications are designed to operate in distributed environments, we can start provisioning on local targets and the transition will be smooth if we are already familiar with a virtualized version of a meshnet.
+A centralized cloud provider solves two problems for us: _reachability_ and _reliability_, which our meshnet is not yet able to produce. Once our meshnet can route network traffic without public IP addresses and service availability derives from protocol-level guarantees rather than expectations of always-on physical hardware, we can start provisioning on local targets and the transition will be smooth if we are already familiar with a virtualized version of a meshnet.
 
 >. . . but isn't the future peer-to-peer?
 
-The applications we provision are _self-hosted_, but most expect having multiple users share a single instance. Some examples are [Matrix](https://matrix.org) and [Loomio](https://www.loomio.org). Server outage usually means the users of that instance are unable to use the service, wheras truly peer-to-peer applications usually are designed expecting ubiquitous node outages. As we adopt more production-ready peer-to-peer applications, we can imagine targeting deployment to local devices like Raspberry Pis with less demand on reliability.
+The applications we provision are _self-hosted_, but most expect having multiple users share a single instance. Some examples are [Matrix](https://matrix.org) and [Loomio](https://www.loomio.org). Server outage usually means the users of that instance are unable to use the service, whereas truly peer-to-peer applications usually are designed expecting ubiquitous node outages. As we adopt more production-ready peer-to-peer applications, we can imagine targeting deployment to local devices like Raspberry Pis with less demand on reliability.
 
 >. . . but why Terraform instead of _X_?
 
