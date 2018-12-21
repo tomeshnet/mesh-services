@@ -1,23 +1,18 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name matrix.CHATDNS h.matrix.CHATDNS;
+    server_name matrix.__DOMAIN_NAME__ h.matrix.__DOMAIN_NAME__;
     return 301 https://$host$request_uri;
-    
-    location ~ /.well-known {
-      allow all;
-      root /usr/share/nginx/html;
-    }
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name matrix.CHATDNS h.matrix.CHATDNS;
+    server_name matrix.__DOMAIN_NAME__ h.matrix.__DOMAIN_NAME__;
 
-    ssl_certificate /etc/nginx/ssl/chat.CHATDNS/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/chat.CHATDNS/privkey.pem;
-    ssl_trusted_certificate /etc/nginx/ssl/chat.CHATDNS/fullchain.pem;
+    ssl_certificate /etc/nginx/ssl/chat.__DOMAIN_NAME__/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/chat.__DOMAIN_NAME__/privkey.pem;
+    ssl_trusted_certificate /etc/nginx/ssl/chat.__DOMAIN_NAME__/fullchain.pem;
 
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:50m;
@@ -45,11 +40,6 @@ server {
     add_header X-Robots-Tag none;
     add_header X-Download-Options noopen;
     add_header X-Permitted-Cross-Domain-Policies none;
-
-    location ~ /.well-known {
-      allow all;
-      root /usr/share/nginx/html;
-    }
 
     location / {
         proxy_pass http://127.0.0.1:8008/;

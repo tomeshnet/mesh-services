@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
+set -e
+
 # Define DO API token
-DO_TOKEN=TOKENSTRING
-DO_DOMAIN=DODOMAIN
+DO_TOKEN=__DO_TOKEN__
 
 deploy_challenge() {
     local DOMAIN="${1}" TOKEN_FILENAME="${2}" TOKEN_VALUE="${3}"
@@ -24,13 +25,16 @@ deploy_challenge() {
     #   TXT record. For HTTP validation it is the value that is expected
     #   be found in the $TOKEN_FILENAME file.
 
-    # Simple example: Use nsupdate with local named
-    # printf 'server 127.0.0.1\nupdate add _acme-challenge.%s 300 IN TXT "%s"\nsend\n' "${DOMAIN}" "${TOKEN_VALUE}" | nsupdate -k /var/run/named/session.key
-    DO_HOSTNAME=$(echo $DOMAIN | sed -e "s/$DO_DOMAIN//" | sed 's/.$//')
-    echo "Issueing channenge for $DO_HOSTNAME Lets Encrypt domain is $DOMAIN Challenge is $TOKEN_VALUE"
-    DNS_ID=$(curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $DO_TOKEN" -d '{"type":"TXT","name":"_acme-challenge.'$DO_HOSTNAME'","data":"'$TOKEN_VALUE'","priority":null,"port":null,"ttl":60,"weight":null,"flags":null,"tag":null}' "https://api.digitalocean.com/v2/domains/$DO_DOMAIN/records" | jq -r '.domain_record.id')
-    echo "$DOMAIN $DNS_ID">> domainstate.txt
-    echo "cat domainstate.txt"
+    echo "Issuing ACME challenge for $DOMAIN with token value $TOKEN_VALUE for DNS validation"
+    DOMAIN_HOST=$(echo $DOMAIN | rev | cut -d. -f3- | rev)
+    DOMAIN_ROOT=$(echo $DOMAIN | rev | cut -d. -f1-2 | rev)
+    RESPONSE=$(curl -sS -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $DO_TOKEN" -d '{"type":"TXT","name":"_acme-challenge.'$DOMAIN_HOST'","data":"'$TOKEN_VALUE'","priority":null,"port":null,"ttl":60,"weight":null,"flags":null,"tag":null}' "https://api.digitalocean.com/v2/domains/$DOMAIN_ROOT/records")
+    echo "Digital Ocean API response: $(echo $RESPONSE | jq '.')"
+    DNS_ID=$(echo $RESPONSE | jq -r '.domain_record.id')
+    echo "$DOMAIN $TOKEN_VALUE $DNS_ID" >> domainstate.txt
+
+    # Print status
+    echo "Digital Ocean TXT records (DOMAIN TOKEN_VALUE DNS_ID):"
     cat domainstate.txt
 }
 
@@ -43,11 +47,10 @@ clean_challenge() {
     #
     # The parameters are the same as for deploy_challenge.
 
-    # Simple example: Use nsupdate with local named
-    # printf 'server 127.0.0.1\nupdate delete _acme-challenge.%s TXT "%s"\nsend\n' "${DOMAIN}" "${TOKEN_VALUE}" | nsupdate -k /var/run/named/session.key
-    DNS_ID=$(grep -E '(^| )'$DOMAIN'( |$)' domainstate.txt | awk -F " " '{ print $2 }')
-    echo "Deleteing $DOMAIN ID is $DNS_ID"
-    curl -X DELETE -H "Content-Type: application/json" -H "Authorization: Bearer $DO_TOKEN" "https://api.digitalocean.com/v2/domains/$DO_DOMAIN/records/$DNS_ID"
+    DNS_ID=$(grep -E '^'$DOMAIN' '$TOKEN_VALUE' ' domainstate.txt | awk -F " " '{ print $3 }')
+    DOMAIN_ROOT=$(echo $DOMAIN | rev | cut -d. -f1-2 | rev)
+    echo "Deleting Digital Ocean TXT record with DNS_ID $DNS_ID from $DOMAIN"
+    curl -sS -X DELETE -H "Content-Type: application/json" -H "Authorization: Bearer $DO_TOKEN" "https://api.digitalocean.com/v2/domains/$DOMAIN_ROOT/records/$DNS_ID" | jq '.'
 }
 
 deploy_cert() {
@@ -72,13 +75,14 @@ deploy_cert() {
     # - TIMESTAMP
     #   Timestamp when the specified certificate was created.
 
-    # Simple example: Copy file to nginx config
     if [ ! -d /etc/nginx/ssl/$DOMAIN/ ]
     then
-    	mkdir -m  700 /etc/nginx/ssl/$DOMAIN/
+    	mkdir -m 700 /etc/nginx/ssl/$DOMAIN/
     fi
-    cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/$DOMAIN/ ; chown -R root:root /etc/nginx/ssl/
-    # systemctl reload nginx
+    cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/$DOMAIN/
+    chown -R root:root /etc/nginx/ssl/$DOMAIN
+
+    # Reload nginx
     systemctl reload nginx
 }
 

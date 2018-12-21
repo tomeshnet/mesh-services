@@ -3,23 +3,17 @@ resource "digitalocean_tag" "matrix-home-service" {
   name = "matrix-homeserver"
 }
 
-# Domain name managed by Digital Ocean
-#resource "digitalocean_domain" "matrix-home-service" {
-#  name        = "${file(var.domain_name)}"
-#  #ip_address  = "${digitalocean_droplet.matrix-server.ipv4_address}"
-#  #ip6_address = "${digitalocean_droplet.matrix-server.ipv6_address}"
-#}
-
 # Matrix server Droplet
 resource "digitalocean_droplet" "matrix-server" {
   image              = "debian-9-x64"
   name               = "matrix.${file(var.domain_name)}"
   region             = "tor1"
-  size               = "1gb"
+  size               = "2gb"
   tags               = ["${digitalocean_tag.matrix-home-service.id}"]
   private_networking = false
   ipv6               = true
   monitoring         = true
+  backups            = true
   ssh_keys           = ["${file(var.ssh_fingerprint)}"]
   connection {
     user             = "root"
@@ -111,7 +105,7 @@ resource "null_resource" "matrix-server" {
     private_key      = "${file(var.pvt_key)}"
     timeout          = "2m"
   }
-  # Setup services such as NGINX, Let's Encrypt, Matrix, etc.
+  # Set up services such as NGINX, Let's Encrypt, Matrix, etc.
   provisioner "remote-exec" {
     inline           = [
       "/tmp/matrix-server/bootstrap-post-dns.sh ${file(var.domain_name)} ${file(var.do_token)}",
@@ -119,9 +113,9 @@ resource "null_resource" "matrix-server" {
   }
 }
 
-# Setup CJDNS if selected
+# Set up cjdns if selected
 resource "null_resource" "matrix-server-cjdns" {
-  count = "${var.cjdns != "0" ? 1 : 0}"
+  count              = "${var.cjdns != "false" ? 1 : 0}"
   depends_on         = ["null_resource.matrix-server"]
   connection {
     host             = "${digitalocean_droplet.matrix-server.ipv4_address}"
@@ -130,22 +124,22 @@ resource "null_resource" "matrix-server-cjdns" {
     private_key      = "${file(var.pvt_key)}"
     timeout          = "2m"
   }
-  # Setup CJDNS
+  # Set up cjdns
   provisioner "remote-exec" {
     inline           = [
       "/tmp/matrix-server/bootstrap-cjdns.sh ${file(var.domain_name)}",
     ]
   }
-  # Get the CJDNS IPv6
+  # Get the cjdns IPv6
   provisioner "local-exec" {
     command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address}:/tmp/matrix-server/ipv6-cjdns .keys/ipv6-cjdns"
   }
 }
 
-# Create DNS record for Chat CJDNS
+# Create DNS record for Chat cjdns
 resource "digitalocean_record" "chat-cjdns" {
   depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
-  count      = "${var.cjdns != "0" ? 1 : 0}"
+  count      = "${var.cjdns != "false" ? 1 : 0}"
   domain     = "${file(var.domain_name)}"
   type       = "AAAA"
   name       = "h.chat"
@@ -155,7 +149,7 @@ resource "digitalocean_record" "chat-cjdns" {
 
 resource "digitalocean_record" "chat-cjdns-caa" {
   depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
-  count      = "${var.cjdns != "0" ? 1 : 0}"
+  count      = "${var.cjdns != "false" ? 1 : 0}"
   domain     = "${file(var.domain_name)}"
   type       = "CAA"
   name       = "h.chat"
@@ -165,10 +159,10 @@ resource "digitalocean_record" "chat-cjdns-caa" {
   ttl        = "86400"
 }
 
-# Create DNS records for Matrix CJDNS
+# Create DNS records for Matrix cjdns
 resource "digitalocean_record" "matrix-cjdns" {
   depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
-  count      = "${var.cjdns != "0" ? 1 : 0}"
+  count      = "${var.cjdns != "false" ? 1 : 0}"
   domain     = "${file(var.domain_name)}"
   type       = "AAAA"
   name       = "h.matrix"
@@ -178,7 +172,7 @@ resource "digitalocean_record" "matrix-cjdns" {
 
 resource "digitalocean_record" "matrix-cjdns-caa" {
   depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
-  count      = "${var.cjdns != "0" ? 1 : 0}"
+  count      = "${var.cjdns != "false" ? 1 : 0}"
   domain     = "${file(var.domain_name)}"
   type       = "CAA"
   name       = "h.matrix"
@@ -188,7 +182,7 @@ resource "digitalocean_record" "matrix-cjdns-caa" {
   ttl        = "86400"
 }
 
-# Get cert from Let's Encrypt
+# Use dehydrated to use DNS-01 to validate the hostname for Let's Encrypt certificate.
 resource "null_resource" "matrix-server-dehydrated" {
   depends_on         = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
   connection {

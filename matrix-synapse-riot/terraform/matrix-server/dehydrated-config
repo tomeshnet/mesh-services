@@ -50,13 +50,13 @@ CHALLENGETYPE="dns-01"
 #CERTDIR="${BASEDIR}/certs"
 
 # Directory for account keys and registration information
-ACCOUNTDIR="${BASEDIR}/accounts"
+#ACCOUNTDIR="${BASEDIR}/accounts"
 
 # Output directory for challenge-tokens to be served by webserver or deployed in HOOK (default: /var/www/dehydrated)
 #WELLKNOWN="/var/www/dehydrated"
 
 # Default keysize for private keys (default: 4096)
-KEYSIZE="4096"
+#KEYSIZE="4096"
 
 # Path to openssl config file (default: <unset> - tries to figure out system default)
 #OPENSSL_CNF=

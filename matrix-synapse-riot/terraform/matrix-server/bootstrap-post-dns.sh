@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-RIOT_VERSION=0.17.7
+set -e
+
+RIOT_VERSION=0.17.8
 
 DOMAIN_NAME=$1
 DO_TOKEN=$2
@@ -22,9 +24,9 @@ systemctl restart nginx.service
 cd /etc/nginx/
 mkdir -m 700 ssl
 cp /tmp/matrix-server/nginx-chat /etc/nginx/sites-available/chat.$DOMAIN_NAME
-sed -i -e "s/CHATDNS/$DOMAIN_NAME/g" /etc/nginx/sites-available/chat.$DOMAIN_NAME
+sed -i -e "s/__DOMAIN_NAME__/$DOMAIN_NAME/g" /etc/nginx/sites-available/chat.$DOMAIN_NAME
 cp /tmp/matrix-server/nginx-matrix /etc/nginx/sites-available/matrix.$DOMAIN_NAME
-sed -i -e "s/CHATDNS/$DOMAIN_NAME/g" /etc/nginx/sites-available/matrix.$DOMAIN_NAME
+sed -i -e "s/__DOMAIN_NAME__/$DOMAIN_NAME/g" /etc/nginx/sites-available/matrix.$DOMAIN_NAME
 ln -s /etc/nginx/sites-available/matrix.$DOMAIN_NAME /etc/nginx/sites-enabled/matrix.$DOMAIN_NAME
 ln -s /etc/nginx/sites-available/chat.$DOMAIN_NAME /etc/nginx/sites-enabled/chat.$DOMAIN_NAME
 
@@ -41,13 +43,12 @@ echo -n "chat.$DOMAIN_NAME matrix.$DOMAIN_NAME" > /opt/dehydrated-$DEHYDRATED_VE
 chmod +x /tmp/matrix-server/dehydrated-hooks /opt/dehydrated-$DEHYDRATED_VERSION/hooks.sh
 ln -s /opt/dehydrated-$DEHYDRATED_VERSION /opt/dehydrated
 cd /opt/dehydrated
-sed -i -e "s/TOKENSTRING/$DO_TOKEN/g" hooks.sh
-sed -i -e "s/DODOMAIN/$DOMAIN_NAME/g" hooks.sh
+sed -i -e "s/__DO_TOKEN__/$DO_TOKEN/g" hooks.sh
 
 # Register to Let's Encrypt
 ./dehydrated --register --accept-terms
 
-cp /tmp/matrix-server/dehydrated-renew.sh /usr/local/sbin/dehydrated-renew.sh
+cp /tmp/matrix-server/bootstrap-dehydrated.sh /usr/local/sbin/dehydrated-renew.sh
 
 # Configure auto-renewals
 sh -c '(crontab -l 2>/dev/null; echo "@weekly /usr/local/sbin/dehydrated-renew.sh") | crontab -'
@@ -74,7 +75,7 @@ chage -d 0 sysadmin
 ########
 # PSQL #
 ########
-# Generate an password for synapse database.
+# Generate an password for synapse database
 DATAPASS=$(dd if=/dev/urandom bs=1M count=500 | sha256sum | awk '{ print $1 }')
 su -c "/tmp/matrix-server/psql-setup.sh $DATAPASS" postgres
 
@@ -90,8 +91,8 @@ cd /var/www/
 wget https://github.com/vector-im/riot-web/releases/download/v$RIOT_VERSION/riot-v$RIOT_VERSION.tar.gz
 mkdir -p /var/www/chat.$DOMAIN_NAME/public
 tar xf riot-v$RIOT_VERSION.tar.gz -C /var/www/chat.$DOMAIN_NAME/public --strip-components 1
+sed -i -e "s/__DOMAIN__/$DOMAIN_NAME/g" /tmp/matrix-server/riot-config.json
 cp /tmp/matrix-server/riot-config.json /var/www/chat.$DOMAIN_NAME/public/config.json
-sed -i -e "s/DOMAIN/$DOMAIN_NAME/g" /var/www/chat.$DOMAIN_NAME/public/config.json
 chown -R www-data:www-data /var/www/chat.$DOMAIN_NAME/
 
 #############################

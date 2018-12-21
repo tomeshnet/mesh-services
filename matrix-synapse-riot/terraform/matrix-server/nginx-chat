@@ -1,27 +1,27 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name chat.CHATDNS h.chat.CHATDNS;
+    server_name chat.__DOMAIN_NAME__ h.chat.__DOMAIN_NAME__;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name chat.CHATDNS h.chat.CHATDNS;
+    server_name chat.__DOMAIN_NAME__ h.chat.__DOMAIN_NAME__;
 
-    root /var/www/chat.CHATDNS/public;
+    root /var/www/chat.__DOMAIN_NAME__/public;
     index index.html index.htm;
 
-    ssl_certificate /etc/nginx/ssl/chat.CHATDNS/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/chat.CHATDNS/privkey.pem;
-    ssl_trusted_certificate /etc/nginx/ssl/chat.CHATDNS/fullchain.pem;
+    ssl_certificate /etc/nginx/ssl/chat.__DOMAIN_NAME__/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/chat.__DOMAIN_NAME__/privkey.pem;
+    ssl_trusted_certificate /etc/nginx/ssl/chat.__DOMAIN_NAME__/fullchain.pem;
 
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:50m;
 
     # Diffie-Hellman parameter for DHE ciphersuites, recommended 4096 bits
-    # Generate with: openssl dhparam -out /etc/nginx/dhparam.pem 4096
+    # Generate with: openssl dhparam -out /etc/ssl/certs/dhparam.pem 4096
     ssl_dhparam /etc/ssl/certs/dhparam.pem;
 
     # Mozilla "Intermediate configuration" copied from https://mozilla.github.io/server-side-tls/ssl-config-generator/

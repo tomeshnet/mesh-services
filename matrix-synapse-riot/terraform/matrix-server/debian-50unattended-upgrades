@@ -28,6 +28,7 @@ Unattended-Upgrade::Origins-Pattern {
         "o=Debian,n=stretch-updates";
         "o=Debian,n=stretch-proposed-updates";
         "o=Debian,n=stretch,l=Debian-Security";
+        "o=Node Source,n=stretch";
 
         // Archive or Suite based matching:
         // Note that this will silently match a different release after
@@ -37,10 +38,6 @@ Unattended-Upgrade::Origins-Pattern {
 //      "o=Debian,a=stable-updates";
 //      "o=Debian,a=proposed-updates";
         "origin=Debian,codename=${distro_codename},label=Debian-Security";
-};
-
-Unattended-Upgrade::Allowed-Origins {
-	"Freight stretch";
 };
 
 // List of packages to not update (regexp are supported)

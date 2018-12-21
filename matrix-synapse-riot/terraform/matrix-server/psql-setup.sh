@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 DATAPASS=$1
 
 # Create user and database

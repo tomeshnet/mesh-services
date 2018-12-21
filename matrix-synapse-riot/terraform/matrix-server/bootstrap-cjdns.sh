@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 CJDNS_VERSION=20.2
 
 DOMAIN_NAME=$1

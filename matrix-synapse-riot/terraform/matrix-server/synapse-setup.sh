@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 SYNAPSE_VERSION=0.33.9
 SERVER_NAME=$1
 DATAPASS=$2
@@ -20,6 +22,7 @@ sed -i -e "s/x_forwarded: false/x_forwarded: true/g" homeserver.yaml
 sed -i -e "s/url_preview_enabled: False/url_preview_enabled: True/g" homeserver.yaml
 sed -i -e "s/enable_group_creation: false/enable_group_creation: true/g" homeserver.yaml
 sed -i -e "s/enable_registration: False/enable_registration: True/g" homeserver.yaml
+sed -i -e "s/allow_guest_access: False/allow_guest_access: True/g" homeserver.yaml
 
 echo "
 url_preview_ip_range_blacklist:
@@ -34,7 +37,7 @@ url_preview_ip_range_blacklist:
  - 'fc00::/7'
  ">> homeserver.yaml
 
-sed -i '/# Database configuration/,/event_cache_size: "10K"/d' homeserver.yam
+sed -i '/# Database configuration/,/event_cache_size: "10K"/d' homeserver.yaml
 echo "
 # Database configuration
 # Postgres database configuration
@@ -58,5 +61,5 @@ pip install lxml
 
 # Create a startup script
 mkdir ~/bin/
-cp /tmp/matrix-server/synapse-startup.sh ~/bin/startup.sh
-sh -c '(crontab -l 2>/dev/null; echo "@reboot /home/synapse/bin/startup.sh") | crontab -'
+cp /tmp/matrix-server/synapse-startup.sh ~/bin/synapse-startup.sh
+sh -c '(crontab -l 2>/dev/null; echo "@reboot /home/synapse/bin/synapse-startup.sh") | crontab -'

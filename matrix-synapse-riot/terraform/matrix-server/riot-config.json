@@ -1,5 +1,5 @@
 {
-    "default_hs_url": "https://matrix.DOMAIN",
+    "default_hs_url": "https://matrix.__DOMAIN__",
     "default_is_url": "https://vector.im",
     "disable_custom_urls": false,
     "disable_guests": false,
@@ -19,7 +19,7 @@
     "default_theme": "light",
     "roomDirectory": {
 	"servers": [
-	    "DOMAIN",
+	    "__DOMAIN__",
 	    "matrix.org"
 	]
     },
