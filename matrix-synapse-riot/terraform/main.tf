@@ -1,6 +1,6 @@
 # Digital Ocean Tag for all server instances
 resource "digitalocean_tag" "matrix-home-service" {
-  name = "matrix-homeserver"
+  name = "matrix-synapse-riot"
 }
 
 # Matrix server Droplet
