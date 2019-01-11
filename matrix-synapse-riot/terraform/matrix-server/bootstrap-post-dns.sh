@@ -58,6 +58,8 @@ sh -c '(crontab -l 2>/dev/null; echo "@weekly /usr/local/sbin/dehydrated-renew.s
 ############
 cp /tmp/matrix-server/ip6tables-rules /etc/iptables/rules.v6
 cp /tmp/matrix-server/iptables-rules /etc/iptables/rules.v4
+ip6tables-restore /etc/iptables/rules.v6
+iptables-restore /etc/iptables/rules.v4
 
 #######################
 # Make non-root users #

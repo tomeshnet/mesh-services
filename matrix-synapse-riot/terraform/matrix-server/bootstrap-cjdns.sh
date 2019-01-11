@@ -22,7 +22,7 @@ cd cjdns
 cp cjdroute /usr/bin/cjdroute
 cjdroute --genconf | sudo tee --append /etc/cjdroute.conf > /dev/null
 
-# Setup CJDNS systemd service
+# Set up CJDNS systemd service
 cp contrib/systemd/cjdns.service /etc/systemd/system/cjdns.service
 chmod 644 /etc/systemd/system/cjdns.service
 cp contrib/systemd/cjdns-resume.service /etc/systemd/system/cjdns-resume.service
