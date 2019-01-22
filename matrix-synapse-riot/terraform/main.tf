@@ -132,7 +132,7 @@ resource "null_resource" "matrix-server-cjdns" {
   }
   # Get the cjdns IPv6
   provisioner "local-exec" {
-    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address}:/tmp/matrix-server/ipv6-cjdns .keys/ipv6-cjdns"
+    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address}:/tmp/matrix-server/ipv6-cjdns .keys/ipv6_cjdns"
   }
 }
 
@@ -143,7 +143,7 @@ resource "digitalocean_record" "chat-cjdns" {
   domain     = "${file(var.domain_name)}"
   type       = "AAAA"
   name       = "h.chat"
-  value      = "${file(".keys/ipv6-cjdns")}"
+  value      = "${file(".keys/ipv6_cjdns")}"
   ttl        = "86400"
 }
 
@@ -166,7 +166,7 @@ resource "digitalocean_record" "matrix-cjdns" {
   domain     = "${file(var.domain_name)}"
   type       = "AAAA"
   name       = "h.matrix"
-  value      = "${file(".keys/ipv6-cjdns")}"
+  value      = "${file(".keys/ipv6_cjdns")}"
   ttl        = "86400"
 }
 
@@ -212,7 +212,7 @@ resource "null_resource" "matrix-server-cleanup" {
   }
   # Get the password for sysadmin user
   provisioner "local-exec" {
-    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address}:/tmp/matrix-server/passwd-sysadmin .keys/passwd-sysadmin"
+    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address}:/tmp/matrix-server/passwd-sysadmin .keys/passwd_sysadmin"
   }
   # Clean up
   provisioner "remote-exec" {
@@ -239,6 +239,6 @@ output "ssh_access" {
   depends_on = ["null_resource.matrix-server-cleanup"]
   value      = [
     "matrix:   ssh -i .keys/id_rsa sysadmin@${digitalocean_record.matrix.fqdn}",
-    "passwd:   ${file(".keys/passwd-sysadmin")}",
+    "passwd:   ${file(".keys/passwd_sysadmin")}",
   ]
 }
