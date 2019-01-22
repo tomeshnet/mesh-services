@@ -23,7 +23,6 @@ sed -i -e "s/url_preview_enabled: False/url_preview_enabled: True/g" homeserver.
 sed -i -e "s/enable_group_creation: false/enable_group_creation: true/g" homeserver.yaml
 sed -i -e "s/enable_registration: False/enable_registration: True/g" homeserver.yaml
 sed -i -e "s/allow_guest_access: False/allow_guest_access: True/g" homeserver.yaml
-
 echo "
 url_preview_ip_range_blacklist:
  - '127.0.0.0/8'
@@ -33,11 +32,8 @@ url_preview_ip_range_blacklist:
  - '100.64.0.0/10'
  - '169.254.0.0/16'
  - '::1/128'
- - 'fe80::/64'
- - 'fc00::/7'
- ">> homeserver.yaml
-
-sed -i '/# Database configuration/,/event_cache_size: "10K"/d' homeserver.yaml
+ - 'fe80::/64'">> homeserver.yaml
+sed -i '/# Database configuration/,/^$/d' homeserver.yaml
 echo "
 # Database configuration
 # Postgres database configuration
@@ -50,9 +46,6 @@ database:
         host: localhost
         cp_min: 5
         cp_max: 10
-
-# Number of events to cache in memory.
-event_cache_size: \"10K\"
 " >> homeserver.yaml
 echo "synctl_cache_factor: 0.02" >> homeserver.yaml
 

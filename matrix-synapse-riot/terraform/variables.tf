@@ -14,6 +14,6 @@ variable "ssh_fingerprint" {
   default = ".keys/ssh_fingerprint"
 }
 variable "cjdns" {
-  description = "Set up Matrix and Riot on CJDNS"
+  description = "Set up Matrix and Riot on cjdns"
   default = true
 }
