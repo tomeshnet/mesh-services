@@ -1,13 +1,14 @@
 Matrix Synapse + Riot
-===================
+=====================
 
 ## Provision Matrix homeserver with Riot frontend
 
 We will be using the following tools and services:
 
-* [Digital Ocean](https://www.digitalocean.com) as the virtual machine provider
+* [Digital Ocean](https://www.digitalocean.com) as the virtual machine and or DNS provider
 * [Terraform](https://www.terraform.io) to provision the cloud servers
 * [Let's Encrypt](https://letsencrypt.org) to get SSL certificates for HTTPS
+* [Proxmox](https://www.proxmox.com) as self-hosted virtual machine option
 
 The following steps assume you have a Digital Ocean account.
 
@@ -33,11 +34,16 @@ The following steps assume you have a Digital Ocean account.
 
         echo -n YOUR_DIGITAL_OCEAN_ACCESS_TOKEN > .keys/do_token
 
-1. Generate RSA keys to access your Digital Ocean VMs:
+1. Generate RSA keys to access your Matrix VM:
 
         ssh-keygen -t rsa -f .keys/id_rsa
 
-    Add the SSH key to your Digital Ocean account under `Settings > Security`, then copy the
+## Digital Ocean Specific Steps
+1.  Rename main-digital-ocean.tf.txt to main.tf
+
+         mv main-digital-ocean.tf.txt main.tf
+
+1.  Add the SSH key to your Digital Ocean account under `Settings > Security`, then copy the
     SSH fingerprint to your local environment:
 
         echo -n YOUR_SSH_FINGERPRINT > .keys/ssh_fingerprint
@@ -45,26 +51,68 @@ The following steps assume you have a Digital Ocean account.
 1. [Download Terraform](https://www.terraform.io/intro/getting-started/install.html), add it to
     your path. On Linux it would look something like this:
 
-        https://releases.hashicorp.com/terraform/0.11.10/terraform_0.11.10_linux_amd64.zip
-        unzip terraform_0.11.10_linux_amd64.zip
-        mv terraform /usr/bin
+        https://releases.hashicorp.com/terraform/0.11.13/terraform_0.11.13_linux_amd64.zip
+        unzip terraform_0.11.13_linux_amd64.zip
+        mv terraform /usr/local/bin
 
     Then run initialization from our `terraform` working directory:
 
         terraform init
 
+## Proxmox Specific Steps
+1.  Rename main-digital-ocean.tf.txt to main.tf
+
+         mv main-proxmox.tf.txt main.tf
+
+1.  Set your host IP information
+
+        echo -n YOUR_IPV4_ADDRESS > .keys/interface_ip
+        echo -n YOUR_IPV4_GATEWAY > .keys/interface_gw
+        echo -n YOUR_IPV4_NETMASK > .keys/interface_ip_netmask (for example 24)
+        echo -n YOUR_IPV6_ADDRESS > .keys/interface_ip6
+        echo -n YOUR_IPV6_GATEWAY > .keys/interface_gw6
+        echo -n YOUR_IPV6_NETMASK > .keys/interface_ip6_netmask (for example 64)
+
+1.  Set your DNS resolver
+
+        echo -n YOUR_RESOLVER_IP_ADDRESS > .keys/nameserver
+
+1. [Download Terraform](https://www.terraform.io/intro/getting-started/install.html), add it to
+    your path. On Linux it would look something like this:
+
+        https://releases.hashicorp.com/terraform/0.11.13/terraform_0.11.13_linux_amd64.zip
+        unzip terraform_0.11.13_linux_amd64.zip
+        mv terraform /usr/local/bin
+
+    Install the Proxmox plug-in
+
+        go get github.com/Telmate/terraform-provider-proxmox/cmd/terraform-provider-proxmox
+        go get github.com/Telmate/terraform-provider-proxmox/cmd/terraform-provisioner-proxmox
+
+    To prevent timeout errors change TaskStatusCheckInterval to 30 seconds in ~/go/src/github.com/Telmate/proxmox-api-go/proxmox/client.go
+
+        go install github.com/Telmate/terraform-provider-proxmox/cmd/terraform-provider-proxmox
+        go install github.com/Telmate/terraform-provider-proxmox/cmd/terraform-provisioner-proxmox
+        mkdir -p ~/.terraform.d/plugins
+        cp ~/go/bin/terraform-provider-proxmox ~/go/bin/terraform-provisioner-proxmox ~/.terraform.d/plugins/
+
+    Then run initialization from our `terraform` working directory:
+
+        terraform init
+
+## Provision the server
 1. Provision the server by running:
 
         terraform apply
 
-    By default, this will set up the frontend to be accessible from the internet and cjdns
+    By default, this will set up the frontend to be accessible from the internet, cjdns, and yggdrasil
 
-    You may also choose to not install cjdns by changing the `cjdns` variable to `false`, for example:
+    You may also choose to not install cjdns and or Yggdrasil by changing their variables to `false`, for example:
 
-        terraform apply -var "cjdns=false"
+        terraform apply -var "cjdns=false" -var "yggdrasil=false"
 
-1. From your browser, login to your Digital Ocean dashboard and find your new VMs tagged with
-    `matrix-synapse-riot`. When it is done you will see a temporary password. At your first login you will
+1. From your browser, login to your dashboard and find your new VM.
+   When it is done you will see a temporary password. At your first login you will
     be prompted to change your password. We recommmend that you do not delete your access token as it is
     needed to renew Let's Encrypt certificates
 
@@ -77,19 +125,9 @@ the domain name you are setting up.
 
 1. SSH into **matrix.tomesh.net**
 
-1. Enter the `virtualenv` as the `synapse` user:
+1. Update Synapse using Debian's apt command
 
-        sudo -i -u synapse
-        cd ~/.synapse
-        source ./bin/activate
-
-1. Stop the Synapse server with `synctl stop`
-
-1. Update with the following command where `VERSION` can be a branch like `master` or `develop`, or a release tag like `v0.34.0`, or a commit hash:
-
-        pip install --upgrade --process-dependency-links https://github.com/matrix-org/synapse/tarball/VERSION
-
-1. Start the Synapse server again with `synctl start`
+        sudo apt update && sudo apt dist-upgrade -y
 
 ### Updating Riot Web client
 
@@ -99,54 +137,22 @@ the domain name you are setting up.
 
 1. Download the pre-compiled [Riot Web release](https://github.com/vector-im/riot-web/releases):
 
-        wget https://github.com/vector-im/riot-web/releases/download/v0.17.8/riot-v0.17.8.tar.gz
+        wget https://github.com/vector-im/riot-web/releases/download/v1.1.1/riot-v1.1.1.tar.gz
+
+1. Backup config file
+        cp /var/www/chat.tomesh.net/public/config.json /root/riot-config.json
 
 1. Remove old Riot client:
 
         rm -r /var/www/chat.tomesh.net/public/*
 
-1. Extract **riot-v0.17.8.tar.gz** into **/var/www/chat.tomesh.net/public**:
+1. Extract **riot-v1.1.1.tar.gz** into **/var/www/chat.tomesh.net/public**:
 
-        tar xf riot-v0.17.8.tar.gz -C /var/www/chat.tomesh.net/public --strip-components 1
+        tar xf riot-v1.1.1.tar.gz -C /var/www/chat.tomesh.net/public --strip-components 1
 
-1. Create **config.json** in /var/www/chat.tomesh.net/public/ with the following lines, so it is used in place of the default **config.sample.json**:
+1. Restore config file
 
-        {
-            "default_hs_url": "https://matrix.tomesh.net",
-            "default_is_url": "https://vector.im",
-            "disable_custom_urls": false,
-            "disable_guests": false,
-            "disable_login_language_selector": false,
-            "disable_3pid_login": false,
-            "brand": "Riot",
-            "integrations_ui_url": "https://scalar.vector.im/",
-            "integrations_rest_url": "https://scalar.vector.im/api",
-            "integrations_jitsi_widget_url": "https://scalar.vector.im/api/widgets/jitsi.html",
-            "bug_report_endpoint_url": "https://riot.im/bugreports/submit",
-            "features": {
-                "feature_groups": "labs",
-                "feature_pinning": "labs"
-            },
-            "default_federate": true,
-            "welcomePageUrl": "home.html",
-            "default_theme": "light",
-            "roomDirectory": {
-                "servers": [
-                    "tomesh.net",
-                    "matrix.org"
-                ]
-            },
-            "welcomeUserId": "@riot-bot:matrix.org",
-            "piwik": {
-                "url": "https://piwik.riot.im/",
-                "whitelistedHSUrls": ["https://matrix.org"],
-                "whitelistedISUrls": ["https://vector.im", "https://matrix.org"],
-                "siteId": 1
-            },
-            "enable_presence_by_hs_url": {
-                "https://matrix.org": false
-            }
-        }
+        cp /root/riot-config.json /var/www/chat.tomesh.net/public/config.json
 
 1. Run `chown -R www-data:www-data /var/www/` to ensure that www-data have full access
 
@@ -162,7 +168,7 @@ the domain name you are setting up.
 
 ### Purging old posts and media files from one year ago
 
-1. Login as an admin user at https://matrix.tomesh.net and copy your `Access token`
+1. Login as an admin user at https://chat.tomesh.net and copy your `Access token`
 
 1. SSH into **matrix.tomesh.net**
 
