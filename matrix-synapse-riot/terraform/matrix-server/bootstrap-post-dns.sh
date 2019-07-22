@@ -2,12 +2,12 @@
 
 set -e
 
-RIOT_VERSION=1.1.1
+RIOT_VERSION=1.3.0
 
 DOMAIN_NAME=$1
 DO_TOKEN=$2
 
-DEHYDRATED_VERSION=0.6.2
+DEHYDRATED_VERSION=0.6.5
 
 #######################
 # nginx + letsencrypt #
