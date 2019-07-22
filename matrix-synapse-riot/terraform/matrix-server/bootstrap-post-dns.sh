@@ -116,6 +116,7 @@ echo "enable_group_creation: true" >> conf.d/custom.yaml
 echo "enable_registration: true" >> conf.d/custom.yaml
 echo "allow_guest_access: true" >> conf.d/custom.yaml
 echo "url_preview_enabled: true" >> conf.d/custom.yaml
+echo "cleanup_extremities_with_dummy_events: true" >> conf.d/custom.yaml
 echo "
 # Database configuration
 # Postgres database configuration
