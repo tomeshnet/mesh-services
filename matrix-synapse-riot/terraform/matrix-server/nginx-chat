@@ -1,14 +1,14 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name chat.__DOMAIN_NAME__ h.chat.__DOMAIN_NAME__;
+    server_name chat.__DOMAIN_NAME__ h.chat.__DOMAIN_NAME__ y.chat.__DOMAIN_NAME__;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name chat.__DOMAIN_NAME__ h.chat.__DOMAIN_NAME__;
+    server_name chat.__DOMAIN_NAME__ h.chat.__DOMAIN_NAME__ y.chat.__DOMAIN_NAME__;
 
     root /var/www/chat.__DOMAIN_NAME__/public;
     index index.html index.htm;

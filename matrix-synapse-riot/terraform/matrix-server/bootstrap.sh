@@ -3,6 +3,7 @@
 set -e
 
 DOMAIN=$1
+DNS=$2
 
 # Wait for cloud-init to complete
 until [[ -f /var/lib/cloud/instance/boot-finished ]]; do
@@ -13,6 +14,13 @@ done
 systemctl stop apt-daily.timer
 systemctl stop apt-daily.service
 
+# Set DNS server
+if [ $DNS ]
+then
+	echo "nameserver $DNS" > /etc/resolv.conf
+	chattr +i /etc/resolv.conf
+fi
+
 # Make swap
 dd if=/dev/zero of=/swapfile bs=1M count=2048
 chmod 600 /swapfile
@@ -20,17 +28,10 @@ mkswap /swapfile
 swapon /swapfile
 echo '/swapfile none swap defaults 0 0' >> /etc/fstab
 
-# Install Digital Ocean new metrics
-curl -sSL https://agent.digitalocean.com/install.sh | sh
+# Remove unscd as it causes issues with chpasswd
+DEBIAN_FRONTEND='noninteractive' apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" remove -y unscd
 
 # Install programs
 apt-get update
 DEBIAN_FRONTEND='noninteractive' apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade -y
-DEBIAN_FRONTEND='noninteractive' apt-get install -y \
-  ntp nginx jq curl iptables-persistent build-essential python2.7-dev libffi-dev \
-  python-pip python-setuptools sqlite3 libssl-dev python-virtualenv \
-  libjpeg-dev libxslt1-dev postgresql postgresql-contrib git-core
-
-# Remove unscd as it causes issues with chpasswd
-apt-get remove -y unscd
-
+DEBIAN_FRONTEND='noninteractive' apt-get install -y ntp nginx jq curl iptables-persistent build-essential libssl-dev libxslt1-dev postgresql postgresql-contrib git-core apt-transport-https

@@ -97,7 +97,7 @@ resource "digitalocean_record" "matrix-srv" {
 
 # Run after DNS records are configured
 resource "null_resource" "matrix-server" {
-  depends_on         = ["digitalocean_record.matrix"]
+  depends_on         = ["digitalocean_record.matrix", "digitalocean_droplet.matrix-server"]
   connection {
     host             = "${digitalocean_droplet.matrix-server.ipv4_address}"
     user             = "root"
@@ -144,7 +144,7 @@ resource "digitalocean_record" "chat-cjdns" {
   type       = "AAAA"
   name       = "h.chat"
   value      = "${file(".keys/ipv6_cjdns")}"
-  ttl        = "86400"
+  ttl        = "3600"
 }
 
 resource "digitalocean_record" "chat-cjdns-caa" {
@@ -156,7 +156,7 @@ resource "digitalocean_record" "chat-cjdns-caa" {
   flags      = 0
   tag        = "issue"
   value      = "letsencrypt.org."
-  ttl        = "86400"
+  ttl        = "3600"
 }
 
 # Create DNS records for Matrix cjdns
@@ -167,7 +167,7 @@ resource "digitalocean_record" "matrix-cjdns" {
   type       = "AAAA"
   name       = "h.matrix"
   value      = "${file(".keys/ipv6_cjdns")}"
-  ttl        = "86400"
+  ttl        = "3600"
 }
 
 resource "digitalocean_record" "matrix-cjdns-caa" {
@@ -179,12 +179,81 @@ resource "digitalocean_record" "matrix-cjdns-caa" {
   flags      = 0
   tag        = "issue"
   value      = "letsencrypt.org."
-  ttl        = "86400"
+  ttl        = "3600"
+}
+
+# Set up Yggdrasil if selected
+resource "null_resource" "matrix-server-yggdrasil" {
+  count              = "${var.yggdrasil != "false" ? 1 : 0}"
+  depends_on         = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  connection {
+    host             = "${digitalocean_droplet.matrix-server.ipv4_address}"
+    user             = "root"
+    type             = "ssh"
+    private_key      = "${file(var.pvt_key)}"
+    timeout          = "2m"
+  }
+  # Set up yggdrasil
+  provisioner "remote-exec" {
+    inline           = [
+      "/tmp/matrix-server/bootstrap-yggdrasil.sh ${file(var.domain_name)}",
+    ]
+  }
+  # Get the yggdrasil IPv6
+  provisioner "local-exec" {
+    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address}:/tmp/matrix-server/ipv6-yggdrasil .keys/ipv6_yggdrasil"
+  }
+}
+
+# Create DNS record for Chat yggdrasil
+resource "digitalocean_record" "chat-yggdrasil" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "AAAA"
+  name       = "y.chat"
+  value      = "${file(".keys/ipv6_yggdrasil")}"
+  ttl        = "3600"
+}
+
+resource "digitalocean_record" "chat-yggdrasil-caa" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "CAA"
+  name       = "y.chat"
+  flags      = 0
+  tag        = "issue"
+  value      = "letsencrypt.org."
+  ttl        = "3600"
+}
+
+# Create DNS records for Matrix yggdrasil
+resource "digitalocean_record" "matrix-yggdrasil" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "AAAA"
+  name       = "y.matrix"
+  value      = "${file(".keys/ipv6_yggdrasil")}"
+  ttl        = "3600"
+}
+
+resource "digitalocean_record" "matrix-yggdrasil-caa" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "CAA"
+  name       = "y.matrix"
+  flags      = 0
+  tag        = "issue"
+  value      = "letsencrypt.org."
+  ttl        = "3600"
 }
 
 # Use dehydrated to use DNS-01 to validate the hostname for Let's Encrypt certificate.
 resource "null_resource" "matrix-server-dehydrated" {
-  depends_on         = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  depends_on         = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
   connection {
     host             = "${digitalocean_droplet.matrix-server.ipv4_address}"
     user             = "root"
@@ -222,19 +291,12 @@ resource "null_resource" "matrix-server-cleanup" {
   }
   # Reboot
   provisioner "local-exec" {
-    command          = "ssh -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address} '(sleep 2; reboot)&'"
+    command          = "ssh -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} root@${digitalocean_droplet.matrix-server.ipv4_address} '(chage -d 0 sysadmin; sleep 2; reboot)&'"
   }
 }
 
 
 # Print summary
-output "digital_ocean_droplets" {
-  depends_on = ["digitalocean_record.*"]
-  value      = [
-    "${digitalocean_droplet.matrix-server.name}:             ${digitalocean_droplet.matrix-server.status}",
-  ]
-}
-
 output "ssh_access" {
   depends_on = ["null_resource.matrix-server-cleanup"]
   value      = [

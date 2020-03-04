@@ -1,0 +1,308 @@
+# Matrix server Proxmox VM
+resource "proxmox_vm_qemu" "matrix-server" {
+  name = "matrix.${file(var.domain_name)}"
+  desc = "matrix server"
+  target_node = "mastervm"
+  
+  clone = "Deb9Cloud-InitTemplate"
+  storage = "local"
+  disk_gb = 100
+  cores   = 4
+  sockets = 1
+  memory  = 4096
+  nic     = "virtio"
+  bridge = "vmbr0"
+  
+  ciuser = "sysadmin"
+  ssh_user = "sysadmin"
+  ssh_private_key = "${file(var.pvt_key)}"
+  sshkeys = "${file(var.pub_key)}"
+  os_type = "cloud-init"
+  ipconfig0 = "ip=${file(var.interface_ip)}/${file(var.interface_ip_netmask)},gw=${file(var.interface_gw)},ip6=${file(var.interface_ip6)}/${file(var.interface_ip6_netmask)},gw6=${file(var.interface_gw6)}"
+
+  nameserver = "${file(var.nameserver)}"
+  searchdomain = "${file(var.domain_name)}"
+  
+  provisioner "file" {
+    source = "matrix-server"
+    destination = "/tmp"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/matrix-server/*.sh",
+      "sudo /tmp/matrix-server/bootstrap.sh ${file(var.domain_name)} ${file(var.nameserver)}",
+    ]
+  }
+}
+
+# DNS records for Matrix
+resource "digitalocean_record" "matrix" {
+  domain = "${file(var.domain_name)}"
+  type   = "A"
+  name   = "matrix"
+  value  = "${file(var.interface_ip)}"
+  ttl    = "3600"
+}
+resource "digitalocean_record" "matrix-v6" {
+  domain = "${file(var.domain_name)}"
+  type   = "AAAA"
+  name   = "matrix"
+  value  = "${file(var.interface_ip6)}"
+  ttl    = "3600"
+}
+resource "digitalocean_record" "matrix-caa" {
+  domain = "${file(var.domain_name)}"
+  type   = "CAA"
+  name   = "matrix"
+  flags  = 0
+  tag  = "issue"
+  value  = "letsencrypt.org."
+  ttl    = "3600"
+}
+
+# DNS records for Riot Web frontend
+resource "digitalocean_record" "chat" {
+  domain = "${file(var.domain_name)}"
+  type   = "A"
+  name   = "chat"
+  value  = "${file(var.interface_ip)}"
+  ttl    = "3600"
+}
+resource "digitalocean_record" "chat-v6" {
+  domain = "${file(var.domain_name)}"
+  type   = "AAAA"
+  name   = "chat"
+  value  = "${file(var.interface_ip6)}"
+  ttl    = "3600"
+}
+resource "digitalocean_record" "chat-caa" {
+  domain = "${file(var.domain_name)}"
+  type   = "CAA"
+  name   = "chat"
+  flags  = 0
+  tag    = "issue"
+  value  = "letsencrypt.org."
+  ttl    = "3600"
+}
+
+# Matrix SRV record
+resource "digitalocean_record" "matrix-srv" {
+  domain   = "${file(var.domain_name)}"
+  type     = "SRV"
+  name     = "_matrix._tcp"
+  priority = "10"
+  weight   = "0"
+  port     = "8448"
+  value    = "matrix.${file(var.domain_name)}."
+  ttl      = "3600"
+}
+
+# Run after DNS records are configured
+resource "null_resource" "matrix-server" {
+  depends_on         = ["digitalocean_record.matrix", "proxmox_vm_qemu.matrix-server"]
+  connection {
+    host             = "${file(var.interface_ip)}"
+    user             = "sysadmin"
+    type             = "ssh"
+    private_key      = "${file(var.pvt_key)}"
+    timeout          = "2m"
+  }
+  # Set up services such as NGINX, Let's Encrypt, Matrix, etc.
+  provisioner "remote-exec" {
+    inline           = [
+      "sudo /tmp/matrix-server/bootstrap-post-dns.sh ${file(var.domain_name)} ${file(var.do_token)}",
+    ]
+  }
+}
+
+# Set up cjdns if selected
+resource "null_resource" "matrix-server-cjdns" {
+  count              = "${var.cjdns != "false" ? 1 : 0}"
+  depends_on         = ["null_resource.matrix-server"]
+  connection {
+    host             = "${file(var.interface_ip)}"
+    user             = "sysadmin"
+    type             = "ssh"
+    private_key      = "${file(var.pvt_key)}"
+    timeout          = "2m"
+  }
+  # Set up cjdns
+  provisioner "remote-exec" {
+    inline           = [
+      "sudo /tmp/matrix-server/bootstrap-cjdns.sh ${file(var.domain_name)}",
+    ]
+  }
+  # Get the cjdns IPv6
+  provisioner "local-exec" {
+    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} sysadmin@${file(var.interface_ip)}:/tmp/matrix-server/ipv6-cjdns .keys/ipv6_cjdns"
+  }
+}
+
+# Create DNS record for Chat cjdns
+resource "digitalocean_record" "chat-cjdns" {
+  depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  count      = "${var.cjdns != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "AAAA"
+  name       = "h.chat"
+  value      = "${file(".keys/ipv6_cjdns")}"
+  ttl        = "3600"
+}
+
+resource "digitalocean_record" "chat-cjdns-caa" {
+  depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  count      = "${var.cjdns != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "CAA"
+  name       = "h.chat"
+  flags      = 0
+  tag        = "issue"
+  value      = "letsencrypt.org."
+  ttl        = "3600"
+}
+
+# Create DNS records for Matrix cjdns
+resource "digitalocean_record" "matrix-cjdns" {
+  depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  count      = "${var.cjdns != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "AAAA"
+  name       = "h.matrix"
+  value      = "${file(".keys/ipv6_cjdns")}"
+  ttl        = "3600"
+}
+
+resource "digitalocean_record" "matrix-cjdns-caa" {
+  depends_on = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  count      = "${var.cjdns != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "CAA"
+  name       = "h.matrix"
+  flags      = 0
+  tag        = "issue"
+  value      = "letsencrypt.org."
+  ttl        = "3600"
+}
+
+# Set up Yggdrasil if selected
+resource "null_resource" "matrix-server-yggdrasil" {
+  count              = "${var.yggdrasil != "false" ? 1 : 0}"
+  depends_on         = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server"]
+  connection {
+    host             = "${file(var.interface_ip)}"
+    user             = "sysadmin"
+    type             = "ssh"
+    private_key      = "${file(var.pvt_key)}"
+    timeout          = "2m"
+  }
+  # Set up yggdrasil
+  provisioner "remote-exec" {
+    inline           = [
+      "sudo /tmp/matrix-server/bootstrap-yggdrasil.sh ${file(var.domain_name)}",
+    ]
+  }
+  # Get the yggdrasil IPv6
+  provisioner "local-exec" {
+    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} sysadmin@${file(var.interface_ip)}:/tmp/matrix-server/ipv6-yggdrasil .keys/ipv6_yggdrasil"
+  }
+}
+
+# Create DNS record for Chat yggdrasil
+resource "digitalocean_record" "chat-yggdrasil" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "AAAA"
+  name       = "y.chat"
+  value      = "${file(".keys/ipv6_yggdrasil")}"
+  ttl        = "3600"
+}
+
+resource "digitalocean_record" "chat-yggdrasil-caa" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "CAA"
+  name       = "y.chat"
+  flags      = 0
+  tag        = "issue"
+  value      = "letsencrypt.org."
+  ttl        = "3600"
+}
+
+# Create DNS records for Matrix yggdrasil
+resource "digitalocean_record" "matrix-yggdrasil" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "AAAA"
+  name       = "y.matrix"
+  value      = "${file(".keys/ipv6_yggdrasil")}"
+  ttl        = "3600"
+}
+
+resource "digitalocean_record" "matrix-yggdrasil-caa" {
+  depends_on = ["null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  count      = "${var.yggdrasil != "false" ? 1 : 0}"
+  domain     = "${file(var.domain_name)}"
+  type       = "CAA"
+  name       = "y.matrix"
+  flags      = 0
+  tag        = "issue"
+  value      = "letsencrypt.org."
+  ttl        = "3600"
+}
+
+# Use dehydrated to use DNS-01 to validate the hostname for Let's Encrypt certificate.
+resource "null_resource" "matrix-server-dehydrated" {
+  depends_on         = ["null_resource.matrix-server-cjdns", "null_resource.matrix-server-yggdrasil", "null_resource.matrix-server"]
+  connection {
+    host             = "${file(var.interface_ip)}"
+    user             = "sysadmin"
+    type             = "ssh"
+    private_key      = "${file(var.pvt_key)}"
+    timeout          = "2m"
+  }
+  # Get an valid SSL Cert from Let's Encrypt
+  provisioner "remote-exec" {
+    inline           = [
+      "sudo /tmp/matrix-server/bootstrap-dehydrated.sh",
+    ]
+  }
+}
+
+# Run cleanup after null_resource matrix-server-dehydrated is done
+resource "null_resource" "matrix-server-cleanup" {
+  depends_on         = ["null_resource.matrix-server-dehydrated", "null_resource.matrix-server"]
+  connection {
+    host             = "${file(var.interface_ip)}"
+    user             = "sysadmin"
+    type             = "ssh"
+    private_key      = "${file(var.pvt_key)}"
+    timeout          = "2m"
+  }
+  # Get the password for sysadmin user
+  provisioner "local-exec" {
+    command          = "scp -B -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} sysadmin@${file(var.interface_ip)}:/tmp/matrix-server/passwd-sysadmin .keys/passwd_sysadmin"
+  }
+  # Clean up
+  provisioner "remote-exec" {
+    inline           = [
+      "sudo /tmp/matrix-server/bootstrap-cleanup.sh",
+    ]
+  }
+  # Reboot
+  provisioner "local-exec" {
+    command          = "ssh -o 'StrictHostKeyChecking no' -o UserKnownHostsFile=/dev/null -i ${var.pvt_key} sysadmin@${file(var.interface_ip)} '(sudo chage -d 0 sysadmin; sleep 2; sudo reboot)&'"
+  }
+}
+
+
+# Print summary
+output "ssh_access" {
+  depends_on = ["null_resource.matrix-server-cleanup"]
+  value      = [
+    "matrix:   ssh -i .keys/id_rsa sysadmin@${digitalocean_record.matrix.fqdn}",
+    "passwd:   ${file(".keys/passwd_sysadmin")}",
+  ]
+}

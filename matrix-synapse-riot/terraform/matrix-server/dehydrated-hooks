@@ -77,13 +77,15 @@ deploy_cert() {
 
     if [ ! -d /etc/nginx/ssl/$DOMAIN/ ]
     then
-    	mkdir -m 700 /etc/nginx/ssl/$DOMAIN/
+    	mkdir -m  700 /etc/nginx/ssl/$DOMAIN/
     fi
-    cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/$DOMAIN/
-    chown -R root:root /etc/nginx/ssl/$DOMAIN
-
-    # Reload nginx
+    cp "${KEYFILE}" "${FULLCHAINFILE}" /etc/nginx/ssl/$DOMAIN/ ; chown -R root:root /etc/nginx/ssl/
     systemctl reload nginx
+    cp "${KEYFILE}" /etc/matrix-synapse/homeserver.tls.key
+    cp "${FULLCHAINFILE}" /etc/matrix-synapse/homeserver.tls.crt
+    chown matrix-synapse:nogroup /etc/matrix-synapse/homeserver.tls.crt /etc/matrix-synapse/homeserver.tls.key
+    chmod 600 /etc/matrix-synapse/homeserver.tls.crt /etc/matrix-synapse/homeserver.tls.key
+    systemctl reload matrix-synapse
 }
 
 deploy_ocsp() {
